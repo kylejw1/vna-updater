@@ -2,15 +2,10 @@ var _ = require('lodash');
 var dockerHubAPI = require('docker-hub-api');
 var Promise = require('bluebird');
 var log = require('winston');
-var Docker = require('dockerode');
 var exec = require('child_process').exec;
-
-// TODO: Make sure to pull and restart on start, then poll every x minutes after
-// TODO: Try catch finally make sure to sleep so no pinning
 
 const EXIT_DEBOUNCE_MS = 60*1000;
 const VNA_SERVER_CONTAINER_NAME = "vna-server";
-
 
 function getMostRecentTagName(user, repo) {
   return dockerHubAPI.tags(user, repo)
@@ -91,51 +86,30 @@ function updateVnaServerContainer(image) {
     .then(runVnaServerContainer(image));
 }
 
-try {
-  //getContainerImage(container).then(image => log.info("Image: " + image));
+var docker = new Docker();
+var latestImage;
+var promises = [];
 
+promises.push(getMostRecentTagName("kylejw", "etcd-arm")
+  .then(latest => {
+    log.info(`Latest tag: ${latest}`);
+    return latest;
+  }));
 
-  // TODO: if null
-  
-//TODO: Look for label vna-version and compare with docker hubs created time, not parsed probably
+promises.push(getCurrentVnaServerImage());
 
-  // query API for container info 
+Promise.all(promises)
+  .then(results => {
+    var latestImage = results[0];
+    var currentImage = results[1];
 
-  var docker = new Docker();
-  var latestImage;
-  var promises = [];
-
-  promises.push(getMostRecentTagName("kylejw", "etcd-arm")
-    .then(latest => {
-      log.info(`Latest tag: ${latest}`);
-      return latest;
-    }));
-
-  promises.push(getCurrentVnaServerImage());
-
-  Promise.all(promises)
-    .then(results => {
-      var latestImage = results[0];
-      var currentImage = results[1];
-
-      if (latestImage && latestImage !== currentImage) {
-        log.info(`Image mismatch.  Will update. latest=${latestImage} current=${currentImage}`);
-        return updateVnaServerContainer(latestImage);
-      } else {
-        log.info(`Image matches.  No update necessary latest=${latestImage} current=${currentImage}`);
-      }
-    })
-    .catch(err => log.error("Fatal :: " + err));
-
-
-} catch(ex) {
-  log.error("Fatal :: " + err);
-} finally {
-  // Sleep so docker restart doesnt cause an update right away
-  Promise
-    .delay(EXIT_DEBOUNCE_MS)
-    .then(() => log.info("Exiting application"));
-}
-
-
-
+    if (latestImage && latestImage !== currentImage) {
+      log.info(`Image mismatch.  Will update. latest=${latestImage} current=${currentImage}`);
+      return updateVnaServerContainer(latestImage);
+    } else {
+      log.info(`Image matches.  No update necessary latest=${latestImage} current=${currentImage}`);
+    }
+  })
+  .catch(err => log.error("Fatal :: " + err))
+  .then(() => log.info(`Iteration complete.  Sleeping for ${EXIT_DEBOUNCE_MS} msec`))
+  .delay(EXIT_DEBOUNCE_MS);
