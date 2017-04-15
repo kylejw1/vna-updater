@@ -34,8 +34,7 @@ function execPromise(command) {
   return new Promise((resolve, reject) => {
     exec(command, (error, stdout, stderr) => {
       if (error || stderr) {
-        log.error(`exec error: error=${error} stderr=${stderr}`);
-        return reject(error || stderr);
+        return reject(`exec error: error=${error} stderr=${stderr}`);
       }
       return resolve(stdout);
     });
@@ -47,7 +46,8 @@ function getContainerImage(name) {
 
   return execPromise(`docker inspect --format='{{.Config.Image}}' ${name}`)
   .catch(err => {
-    throw `Failed to get container image for ${name} :: ${err}`;
+    log.warn(`Failed to get container image for ${name} :: ${err}`);
+    return Promise.resolve(null);
   });
 }
 
