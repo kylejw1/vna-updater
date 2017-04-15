@@ -3,11 +3,13 @@ var dockerHubAPI = require('docker-hub-api');
 var Promise = require('bluebird');
 var log = require('winston');
 var Docker = require('dockerode');
+var exec = require('child_process').exec;
 
 // TODO: Make sure to pull and restart on start, then poll every x minutes after
 // TODO: Try catch finally make sure to sleep so no pinning
 
 const EXIT_DEBOUNCE_MS = 60*1000;
+const VNA_SERVER_CONTAINER_NAME = "vna-server";
 
 
 function getMostRecentTagName(user, repo) {
@@ -28,106 +30,65 @@ function getTagLastUpdated(tag) {
   return new Date(tag.last_updated);
 }
 
-function containerInspect(container) {
+function execPromise(command) {
   return new Promise((resolve, reject) => {
-    container.inspect((err, data) => {
-
-      if (err) {
-        log.error("Container inspect error :: " + err);
-        return reject(err);
+    exec(command, (error, stdout, stderr) => {
+      if (error || stderr) {
+        log.error(`exec error: error=${error} stderr=${stderr}`);
+        return reject(error || stderr);
       }
-      return resolve(data);
+      return resolve(stdout);
     });
   });
 }
 
-function getContainerImage(container) {
-  return containerInspect(container)
-    .then(data => {
-      var image = data.Config.Image;
-      if (!image) {
-        log.error(`Could not parse current container image tag`);
-        throw err;
-      }
-    }).catch(err => {
-      return null;
-    });
-}
+function getContainerImage(name) {
+  log.info("Getting image: " + name);
 
-function getCurrentVnaServerImage(docker) {
-  try {
-    var container = docker.getContainer('vna-server');
-  } catch(err) {
-    log.warn("Could not find existing vna-server container.");
-    return Promise.resolve(null);
-  }
-  return getContainerImage(container);
-}
-
-function pullImage(docker, image) {
-  return new Promise((resolve, reject) => {
-    docker.pull(image, (err, stream) => {
-      if (err) return reject(err);
-      docker.modem.followProgress(stream, onFinished, onProgress);
-      function onFinished(err, output) {
-        if(err) return reject(err);
-        log.info("Pull complete :: " + JSON.stringify(output));
-        return resolve(output);
-      }
-      function onProgress(event) {
-        log.info("Pull progress :: " + JSON.stringify(event));
-      }
-    });
+  return execPromise(`docker inspect --format='{{.Config.Image}}' ${name}`)
+  .catch(err => {
+    throw `Failed to get container image for ${name} :: ${err}`;
   });
 }
 
-function removeContainer(docker, containerName) {
+function getCurrentVnaServerImage() {
+  return getContainerImage(VNA_SERVER_CONTAINER_NAME);
+}
 
-  return new Promise((resolve, reject) => {
-    try {
-      var container = docker.getContainer(containerName);
-    } catch(err) {
-      return reject(err);
-    }
-
-    container.remove({force: true}, (err, data) => {
-      if (err) return reject(err);
-      resolve(data);
+function pullImage(image) {
+  log.info("Pulling image " + image);
+  return execPromise(`docker pull ${image}`)
+    .then(log.info(`Image ${image} pulled successfully`))
+    .catch(err => {
+      throw `Failed to pull image ${image} :: ${err}`;
     });
-  });
 }
 
-function runContainer(docker, image, containerName) {
-  var create = {
-    AttachStdin: false,
-    AttachStdout: false,
-    AttachStderr: false,
-    ExposedPorts: { "1337": "1337" },
-    HostConfig: {
-      RestartPolicy: "Always"
-    }
-  };
-
-  var start = {
-
-  };
-  docker.run(image, null, null, create, start, function(err, data, container) {
-    if (err) {
-      return log.error("Docker run error :: " + error);
-    }
-
-    log.info("Docker run data :: " + data);
-    log.info("Docker run container :: " + container);
-  });
+function forceRemoveContainer(name) {
+  log.info("Removing container " + name);
+  return execPromise(`docker rm -f ${name}`)
+    .catch(err => {
+      throw `Failed to remove container ${name} :: ${err}`;
+    });
 }
 
-function update(docker, image, containerName) {
-  return pullImage(docker, image)
-    .then(() => {
-      removeContainer(docker, containerName)
-        .catch(err => log.warn("Container removal error :: " + err));
-    })
-    .then(() => runContainer(docker, image, containerName));
+function runContainer(name, image, options) {
+  var runCmd = `docker run --name ${name} ${options} ${image}`;
+  log.info(`Run container '${runCmd}'`);
+  return execPromise(runCmd)
+    .catch(err => {
+      throw `Failed to run container ${name} :: ${err}`;
+    });
+}
+
+function runVnaServerContainer(image) {
+  return runContainer(VNA_SERVER_CONTAINER_NAME, image, "-d -p 1337:1337 --restart always");
+}
+
+function updateVnaServerContainer(image) {
+  return pullImage(image)
+    .then(forceRemoveContainer(VNA_SERVER_CONTAINER_NAME))
+    .then(runVnaServerContainer(image));
 }
 
 try {
@@ -159,7 +120,7 @@ try {
 
       if (latestImage && latestImage !== currentImage) {
         log.info(`Image mismatch.  Will update. latest=${latestImage} current=${currentImage}`);
-        return update(docker, latestImage, "vna-server");
+        return updateVnaServerContainer(latestImage);
       } else {
         log.info(`Image matches.  No update necessary latest=${latestImage} current=${currentImage}`);
       }
