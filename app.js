@@ -71,13 +71,29 @@ function pullImage(docker, image) {
         log.error("Image pull error :: " + err);
         return reject(err);
       }
-      resolve(stream);
+
+  docker.modem.followProgress(stream, onFinished, onProgress);
+
+  function onFinished(err, output) {
+    //output is an array with output json parsed objects
+    //...
+if(err) {
+reject(err);
+} else {
+log.info("Pull complete");
+resolve(output);
+}
+  }
+  function onProgress(event) {
+    log.info("Pull progress :: " + JSON.stringify(event));
+  }
+
     });
   });
 }
 
 function update(docker, image) {
-  return pullImage(image);
+  return pullImage(docker, image);
 }
 
 try {
@@ -114,11 +130,11 @@ try {
         log.info(`Image matches.  No update necessary latest=${latestImage} current=${currentImage}`);
       }
     })
-    .catch(err => log.error("Fatal :: " + JSON.stringify(err)));
+    .catch(err => log.error("Fatal :: " + err));
 
 
 } catch(ex) {
-  log.error("Fatal :: " + JSON.stringify(err));
+  log.error("Fatal :: " + err);
 } finally {
   // Sleep so docker restart doesnt cause an update right away
   Promise
