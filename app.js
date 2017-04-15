@@ -1,6 +1,4 @@
 var _ = require('lodash');
-var request = require('request');
-var rp = require('request-promise');
 var dockerHubAPI = require('docker-hub-api');
 var Promise = require('bluebird');
 var log = require('winston');
