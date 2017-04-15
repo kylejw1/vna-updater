@@ -67,33 +67,39 @@ function getCurrentVnaServerImage(docker) {
 function pullImage(docker, image) {
   return new Promise((resolve, reject) => {
     docker.pull(image, (err, stream) => {
-      if (err) {
-        log.error("Image pull error :: " + err);
-        return reject(err);
+      if (err) return reject(err);
+      docker.modem.followProgress(stream, onFinished, onProgress);
+      function onFinished(err, output) {
+        if(err) return reject(err);
+        log.info("Pull complete :: " + JSON.stringify(output));
+        return resolve(output);
       }
-
-  docker.modem.followProgress(stream, onFinished, onProgress);
-
-  function onFinished(err, output) {
-    //output is an array with output json parsed objects
-    //...
-if(err) {
-reject(err);
-} else {
-log.info("Pull complete");
-resolve(output);
-}
-  }
-  function onProgress(event) {
-    log.info("Pull progress :: " + JSON.stringify(event));
-  }
-
+      function onProgress(event) {
+        log.info("Pull progress :: " + JSON.stringify(event));
+      }
     });
   });
 }
 
-function update(docker, image) {
-  return pullImage(docker, image);
+function removeContainer(docker, containerName) {
+
+  return new Promise((resolve, reject) => {
+    try {
+      var container = docker.getContainer(containerName);
+    } catch(err) {
+      return reject(err);
+    }
+
+    container.remove({force: true}, (err, data) => {
+      if (err) return reject(err);
+      resolve(data);
+    });
+  });
+}
+
+function update(docker, image, containerName) {
+  return pullImage(docker, image)
+    .then(() => removeContainer(docker, containerName));
 }
 
 try {
@@ -125,7 +131,7 @@ try {
 
       if (latestImage && latestImage !== currentImage) {
         log.info(`Image mismatch.  Will update. latest=${latestImage} current=${currentImage}`);
-        return update(docker, latestImage);
+        return update(docker, latestImage, "vna-server");
       } else {
         log.info(`Image matches.  No update necessary latest=${latestImage} current=${currentImage}`);
       }
