@@ -19,20 +19,37 @@ function getTagLastUpdated(tag) {
   return new Date(tag.last_updated);
 }
 
+function containerInspect(container) {
+  return new Promise((resolve, reject) => {
+    container.inspect((err, data) => {
+      if (err) {
+        return reject(err);
+      }
+      return resolve(data);
+    });
+  });
+}
+
+function getContainerImage(container) {
+  return containerInspect(container)
+    .then(data => data.Config.Image);
+}
+
 try {
   var docker = new Docker();
 
   var container = docker.getContainer('vna-server');
+
+  getContainerImage.then(image => log.info("Image"));
+  // TODO: if null
   
 //TODO: Look for label vna-version and compare with docker hubs created time, not parsed probably
 
   // query API for container info 
-  container.inspect(function (err, data) {
-    console.log(data);
-  });
+
 
   getMostRecentTag("kylejw", "etcd-arm")
-    .then(latest => console.log((latest)));
+    .then(latest => log.info((latest)));
 
 
 } catch(ex) {
