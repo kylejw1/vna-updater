@@ -32,7 +32,10 @@ function containerInspect(container) {
 
 function getContainerImage(container) {
   return containerInspect(container)
-    .then(data => data.Config.Image);
+    .then(data => {
+      log.info(data);
+      data.Config.Image
+    });
 }
 
 try {
@@ -55,6 +58,7 @@ try {
 } catch(ex) {
   log.error("Fatal :: " + JSON.stringify(ex));
 } finally {
+  log.info(`Sleeping for ${EXIT_DEBOUNCE_MS} msec before exit`);
   // Sleep so docker restart doesnt cause an update right away
   Promise
     .delay(EXIT_DEBOUNCE_MS)
