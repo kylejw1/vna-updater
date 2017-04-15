@@ -62,9 +62,7 @@ function pullImage(image) {
 function forceRemoveContainer(name) {
   log.info("Removing container " + name);
   return execPromise(`docker rm -f ${name}`)
-    .catch(err => {
-      throw `Failed to remove container ${name} :: ${err}`;
-    });
+    .catch(err => log.error(`Failed to remove container ${name} :: ${err}`));
 }
 
 function runContainer(name, image, options) {
@@ -86,8 +84,6 @@ function updateVnaServerContainer(image) {
     .then(runVnaServerContainer(image));
 }
 
-var docker = new Docker();
-var latestImage;
 var promises = [];
 
 promises.push(getMostRecentTagName("kylejw", "etcd-arm")
@@ -99,6 +95,7 @@ promises.push(getMostRecentTagName("kylejw", "etcd-arm")
 promises.push(getCurrentVnaServerImage());
 
 Promise.all(promises)
+  .delay(30*1000)
   .then(results => {
     var latestImage = results[0];
     var currentImage = results[1];
