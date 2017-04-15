@@ -1,0 +1,26 @@
+{
+  "name": "vna-updater",
+  "version": "1.0.0",
+  "description": "vna-updater",
+  "main": "app.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/kylejw1/vna-updater.git"
+  },
+  "author": "kylejw",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/kylejw1/vna-updater/issues"
+  },
+  "homepage": "https://github.com/kylejw1/vna-updater#readme",
+  "dependencies": {
+    "bluebird": "^3.5.0",
+    "docker-hub-api": "^0.5.1",
+    "dockerode": "^2.4.3",
+    "lodash": "^4.17.4",
+    "winston": "^2.3.1"
+  }
+}
