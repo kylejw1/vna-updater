@@ -22,6 +22,7 @@ function getTagLastUpdated(tag) {
 function containerInspect(container) {
   return new Promise((resolve, reject) => {
     container.inspect((err, data) => {
+
       if (err) {
         return reject(err);
       }
@@ -31,11 +32,8 @@ function containerInspect(container) {
 }
 
 function getContainerImage(container) {
-  return containerInspect(container)
-    .then(data => {
-      log.info(data);
-      data.Config.Image
-    });
+  return containerInspect(container, {format:'{{.Config.Image}}'})
+    .then(data => data.Config.Image);
 }
 
 try {
@@ -43,7 +41,7 @@ try {
 
   var container = docker.getContainer('vna-server');
 
-  getContainerImage.then(image => log.info("Image"));
+  getContainerImage(container).then(image => log.info("Image: " + image));
   // TODO: if null
   
 //TODO: Look for label vna-version and compare with docker hubs created time, not parsed probably
@@ -58,7 +56,6 @@ try {
 } catch(ex) {
   log.error("Fatal :: " + JSON.stringify(ex));
 } finally {
-  log.info(`Sleeping for ${EXIT_DEBOUNCE_MS} msec before exit`);
   // Sleep so docker restart doesnt cause an update right away
   Promise
     .delay(EXIT_DEBOUNCE_MS)
