@@ -97,9 +97,37 @@ function removeContainer(docker, containerName) {
   });
 }
 
+function runContainer(docker, image, containerName) {
+  var create = {
+    AttachStdin: false,
+    AttachStdout: false,
+    AttachStderr: false,
+    ExposedPorts: { "1337": "1337" },
+    HostConfig: {
+      RestartPolicy: "Always"
+    }
+  };
+
+  var start = {
+
+  };
+  docker.run(image, null, null, create, start, function(err, data, container) {
+    if (err) {
+      return log.error("Docker run error :: " + error);
+    }
+
+    log.info("Docker run data :: " + data);
+    log.info("Docker run container :: " + container);
+  });
+}
+
 function update(docker, image, containerName) {
   return pullImage(docker, image)
-    .then(() => removeContainer(docker, containerName));
+    .then(() => {
+      removeContainer(docker, containerName)
+        .catch(err => log.warn("Container removal error :: " + err));
+    })
+    .then(() => runContainer(docker, image, containerName));
 }
 
 try {
