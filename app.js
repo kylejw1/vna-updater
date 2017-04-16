@@ -63,8 +63,8 @@ promises.push(getCurrentVnaServerImage());
 
 Promise.all(promises)
   .then(results => {
-    var latestImage = results[0];
-    var currentImage = results[1];
+    var latestImage = (results[0] || "").trim();
+    var currentImage = (results[1] || "").trim();
 
     if (latestImage && latestImage !== currentImage) {
       log.info(`Image mismatch.  Will update. latest=${latestImage} current=${currentImage}`);
