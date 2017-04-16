@@ -48,12 +48,12 @@ function getCurrentVnaServerImage() {
 }
 
 function updateVnaServerContainer(oldImage, newImage) {
-  return execPromise(`/bin/bash -c "docker pull ${newImage} && docker rm -f vna-server || true && docker rmi ${oldImage} || true && docker run --name vna-server -d -p 1337:1337 --restart always ${newImage} /etcd"`);
+  return execPromise(`/bin/bash -c "docker pull ${newImage} && docker rm -f vna-server || true && docker rmi ${oldImage} || true && docker run --name vna-server -d -p 80:1337 --restart always ${newImage} node app.js --production"`);
 }
 
 var promises = [];
 
-promises.push(getMostRecentTagName("kylejw", "etcd-arm")
+promises.push(getMostRecentTagName("kylejw", "vna-server")
   .then(latest => {
     log.info(`Latest tag: ${latest}`);
     return latest;
