@@ -15,9 +15,6 @@ function getMostRecentTagName(user, repo) {
         .max(tag => getTagLastUpdated(tag));
 
       return `${user}/${repo}:${tag.name}`;
-    }).catch(err => {
-      log.error(`Could not locate most recent tag on docker hub: ${user}/${repo}`);
-      throw err;
     });
 }
 
@@ -50,39 +47,8 @@ function getCurrentVnaServerImage() {
   return getContainerImage(VNA_SERVER_CONTAINER_NAME);
 }
 
-function pullImage(image) {
-  log.info("Pulling image " + image);
-  return execPromise(`docker pull ${image}`)
-    .then(log.info(`Image ${image} pulled successfully`))
-    .catch(err => {
-      throw `Failed to pull image ${image} :: ${err}`;
-    });
-}
-
-function forceRemoveContainer(name) {
-  log.info("Removing container " + name);
-  return execPromise(`docker rm -f ${name}`)
-    .catch(err => log.error(`Failed to remove container ${name} :: ${err}`));
-}
-
-function runContainer(name, image, options) {
-  var runCmd = `docker run --name ${name} ${options} ${image}`;
-  log.info(`Run container '${runCmd}'`);
-  return execPromise(runCmd)
-    .catch(err => {
-      throw `Failed to run container ${name} :: ${err}`;
-    });
-}
-
-function runVnaServerContainer(image) {
-  return runContainer(VNA_SERVER_CONTAINER_NAME, image, "-d -p 1337:1337 --restart always");
-}
-
 function updateVnaServerContainer(image) {
-  return pullImage(image)
-    .then(forceRemoveContainer(VNA_SERVER_CONTAINER_NAME))
-    .delay(30*1000)
-    .then(runVnaServerContainer(image));
+  return execPromise(`docker pull ${image} && docker rm -f vna-server || true && docker run --name vna-server -d -p 1337:1337 --restart always kylejw/etcd /etcd`);
 }
 
 var promises = [];
@@ -96,7 +62,6 @@ promises.push(getMostRecentTagName("kylejw", "etcd-arm")
 promises.push(getCurrentVnaServerImage());
 
 Promise.all(promises)
-  .delay(30*1000)
   .then(results => {
     var latestImage = results[0];
     var currentImage = results[1];
