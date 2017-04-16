@@ -9,6 +9,7 @@ docker push kylejw/vna-updater:1.0.0
 # Run
 
 ```
+docker rm -vf vna-updater
 docker run -d \
   --name vna-updater \
   --restart always \

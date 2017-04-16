@@ -47,8 +47,8 @@ function getCurrentVnaServerImage() {
   return getContainerImage(VNA_SERVER_CONTAINER_NAME);
 }
 
-function updateVnaServerContainer(image) {
-  return execPromise(`docker pull ${image} && docker rm -f vna-server || true && docker run --name vna-server -d -p 1337:1337 --restart always kylejw/etcd /etcd`);
+function updateVnaServerContainer(oldImage, newImage) {
+  return execPromise(`/bin/bash -c "docker pull ${newImage} && docker rm -f vna-server || true && docker run --name vna-server -d -p 1337:1337 --restart always ${newImage} /etcd && docker rmi ${oldImage} || true"`);
 }
 
 var promises = [];
@@ -68,7 +68,7 @@ Promise.all(promises)
 
     if (latestImage && latestImage !== currentImage) {
       log.info(`Image mismatch.  Will update. latest=${latestImage} current=${currentImage}`);
-      return updateVnaServerContainer(latestImage);
+      return updateVnaServerContainer(currentImage, latestImage);
     } else {
       log.info(`Image matches.  No update necessary latest=${latestImage} current=${currentImage}`);
     }
