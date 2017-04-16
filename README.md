@@ -14,6 +14,6 @@ docker run -d \
   --restart always \
   -v /var/run/docker.sock:/var/run/docker.sock \
   -v /usr/bin/docker:/usr/bin/docker \
-  vna-updater
+  kylejw/vna-updater:1.0.0
 
 ```

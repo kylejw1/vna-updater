@@ -81,6 +81,7 @@ function runVnaServerContainer(image) {
 function updateVnaServerContainer(image) {
   return pullImage(image)
     .then(forceRemoveContainer(VNA_SERVER_CONTAINER_NAME))
+    .delay(30*1000)
     .then(runVnaServerContainer(image));
 }
 
